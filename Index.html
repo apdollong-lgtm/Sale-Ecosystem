@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sale Ecosystem SaaS</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f5f7fb;
+        color: #1f2937;
+      }
+      .container {
+        max-width: 1080px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        padding: 16px;
+      }
+      h1 {
+        margin: 0 0 12px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin-top: 8px;
+        font-size: 14px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 4px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        box-sizing: border-box;
+      }
+      button {
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+      button.secondary {
+        background: #6b7280;
+      }
+      .metrics {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+      .metric {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px;
+      }
+      .metric .value {
+        font-size: 22px;
+        font-weight: bold;
+      }
+      pre {
+        background: #111827;
+        color: #e5e7eb;
+        padding: 12px;
+        border-radius: 8px;
+        overflow: auto;
+        min-height: 80px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Sale Ecosystem SaaS</h1>
+
+      <div class="card">
+        <h2>ตั้งค่าเชื่อม API</h2>
+        <label>Web App URL</label>
+        <input id="baseUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+        <label>API Key</label>
+        <input id="apiKey" placeholder="API_KEY จาก Config Sheet" />
+      </div>
+
+      <div class="grid" style="margin-top:16px;">
+        <div class="card">
+          <h2>เพิ่ม Lead</h2>
+          <label>ชื่อ</label><input id="leadName" />
+          <label>อีเมล</label><input id="leadEmail" />
+          <label>เบอร์โทร</label><input id="leadPhone" />
+          <label>แหล่งที่มา</label><input id="leadSource" value="Website" />
+          <label>มูลค่าดีล</label><input id="leadValue" type="number" value="10000" />
+          <label>ผู้รับผิดชอบ</label><input id="leadOwner" value="sales-a" />
+          <button onclick="createLead()">สร้าง Lead</button>
+        </div>
+
+        <div class="card">
+          <h2>อัปเดต Stage ดีล</h2>
+          <label>Deal ID</label><input id="dealId" />
+          <label>Stage</label>
+          <select id="dealStage">
+            <option>NEW</option>
+            <option>QUALIFIED</option>
+            <option>PROPOSAL</option>
+            <option>WON</option>
+            <option>LOST</option>
+          </select>
+          <label>หมายเหตุ</label><textarea id="dealNote">อัปเดตจากหน้าเว็บ</textarea>
+          <button onclick="updateDeal()">อัปเดตดีล</button>
+        </div>
+
+        <div class="card">
+          <h2>บันทึกชำระเงิน</h2>
+          <label>Invoice ID</label><input id="invoiceId" />
+          <label>จำนวนเงิน</label><input id="paymentAmount" type="number" value="10000" />
+          <label>ช่องทาง</label><input id="paymentChannel" value="PromptPay" />
+          <label>TX Ref</label><input id="paymentTxRef" value="WEB-REF-001" />
+          <button onclick="recordPayment()">บันทึกชำระเงิน</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>Dashboard</h2>
+        <button class="secondary" onclick="loadDashboard()">รีเฟรช Dashboard</button>
+        <div id="metrics" class="metrics" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>ผลลัพธ์ API</h2>
+        <pre id="result"></pre>
+      </div>
+    </div>
+
+    <script>
+      function getConfig() {
+        return {
+          baseUrl: document.getElementById('baseUrl').value.trim(),
+          apiKey: document.getElementById('apiKey').value.trim(),
+        };
+      }
+
+      async function callApi(path, payload) {
+        const { baseUrl, apiKey } = getConfig();
+        if (!baseUrl || !apiKey) {
+          throw new Error('กรุณากรอก Web App URL และ API Key');
+        }
+
+        const response = await fetch(`${baseUrl}/${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, apiKey }),
+        });
+
+        const data = await response.json();
+        document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        if (!data.ok) {
+          throw new Error(data.error || 'API error');
+        }
+        return data;
+      }
+
+      async function createLead() {
+        try {
+          await callApi('api/leads', {
+            name: document.getElementById('leadName').value,
+            email: document.getElementById('leadEmail').value,
+            phone: document.getElementById('leadPhone').value,
+            source: document.getElementById('leadSource').value,
+            value: Number(document.getElementById('leadValue').value || 0),
+            owner: document.getElementById('leadOwner').value,
+          });
+          await loadDashboard();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      async function updateDeal() {
+        try {
+          await callApi('api/deals/update', {
+            dealId: document.getElementById('dealId').value,
+            stage: document.getElementById('dealStage').value,
+            note: document.getElementById('dealNote').value,
+          });
+          await loadDashboard();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      async function recordPayment() {
+        try {
+          await callApi('api/payments/webhook', {
+            invoiceId: document.getElementById('invoiceId').value,
+            amount: Number(document.getElementById('paymentAmount').value || 0),
+            channel: document.getElementById('paymentChannel').value,
+            txRef: document.getElementById('paymentTxRef').value,
+          });
+          await loadDashboard();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      async function loadDashboard() {
+        try {
+          const data = await callApi('api/dashboard', {});
+          renderMetrics(data.data || {});
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      function renderMetrics(data) {
+        const metrics = [
+          ['Total Deals', data.totalDeals || 0],
+          ['Won Deals', data.wonDeals || 0],
+          ['Win Rate (%)', data.winRate || 0],
+          ['Pipeline Value', data.pipelineValue || 0],
+          ['Open Invoices', data.openInvoices || 0],
+          ['Revenue', data.revenue || 0],
+        ];
+
+        document.getElementById('metrics').innerHTML = metrics
+          .map(
+            ([label, value]) =>
+              `<div class="metric"><div>${label}</div><div class="value">${value}</div></div>`
+          )
+          .join('');
+      }
+    </script>
+  </body>
+</html>
